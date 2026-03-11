@@ -1,1 +1,44 @@
-/* Add styles here */
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #333;
+}
+
+#board {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+    width: 80vmin;
+    height: 80vmin;
+    border: 2px solid #333;
+}
+
+.square {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 6vmin;
+}
+
+.white {
+    background-color: #f0d9b5;
+}
+
+.black {
+    background-color: #b58863;
+}
+
+.selected {
+    background-color: #6495ED;
+}
+
+.valid-move {
+    background-color: #90EE90;
+}
+
+.square img {
+    max-width: 100%;
+    max-height: 100%;
+}
