@@ -30,6 +30,19 @@ let selectedPiece = null;
 let validMoves = [];
 let history = [];
 let currentMoveIndex = -1;
+let difficulty = 'easy'; // Default difficulty
+
+// Piece values for board evaluation
+const pieceValues = {
+    'p': 10, 'n': 30, 'b': 30, 'r': 50, 'q': 90, 'k': 900,
+    'P': 10, 'N': 30, 'B': 30, 'R': 50, 'Q': 90, 'K': 900
+};
+
+// Event listener for difficulty change
+document.getElementById('difficulty').addEventListener('change', (event) => {
+    difficulty = event.target.value;
+    console.log('Difficulty set to:', difficulty);
+});
 
 function pushToHistory() {
     // If a new move is made after undoing, remove future history
@@ -59,6 +72,22 @@ pushToHistory();
 // Event listener for the undo button
 document.getElementById('undoButton').addEventListener('click', undoMove);
 
+function evaluateBoard(board) {
+    let score = 0;
+    for (let i = 0; i < 8; i++) {
+        for (let j = 0; j < 8; j++) {
+            const piece = board[i][j];
+            if (piece) {
+                if (piece === piece.toUpperCase()) { // White piece
+                    score += pieceValues[piece];
+                } else { // Black piece
+                    score -= pieceValues[piece.toUpperCase()];
+                }
+            }
+        }
+    }
+    return score;
+}
 
 function getPawnMoves(piece, row, col) {
     const moves = [];
@@ -321,51 +350,81 @@ function makeAIMove() {
         return;
     }
 
-    // select a move that does not put the king in check
-    let selectedMove = null;
-    let attempts = 0;
-    const maxAttempts = 100; // Prevent infinite loop for impossible scenarios
-    
-    while(allMoves.length > 0 && attempts < maxAttempts) {
-        const randomMoveIndex = Math.floor(Math.random() * allMoves.length);
-        const randomMove = allMoves[randomMoveIndex];
-        const randomToIndex = Math.floor(Math.random() * randomMove.to.length);
-        const randomTo = randomMove.to[randomToIndex];
+    let bestMove = null;
+    if (difficulty === 'easy') {
+        let selectedMove = null;
+        let attempts = 0;
+        const maxAttempts = 100; // Prevent infinite loop for impossible scenarios
+        
+        while(allMoves.length > 0 && attempts < maxAttempts) {
+            const randomMoveIndex = Math.floor(Math.random() * allMoves.length);
+            const randomMove = allMoves[randomMoveIndex];
+            const randomToIndex = Math.floor(Math.random() * randomMove.to.length);
+            const randomTo = randomMove.to[randomToIndex];
 
-        const originalBoardState = JSON.parse(JSON.stringify(boardState)); // Save current state
-        boardState[randomTo[0]][randomTo[1]] = randomMove.piece;
-        boardState[randomMove.from[0]][randomMove.from[1]] = '';
+            const originalBoardState = JSON.parse(JSON.stringify(boardState)); // Save current state
+            boardState[randomTo[0]][randomTo[1]] = randomMove.piece;
+            boardState[randomMove.from[0]][randomMove.from[1]] = '';
 
-        if (!isKingInCheck('black')) {
-            selectedMove = {piece: randomMove.piece, from: randomMove.from, to: randomTo};
-            // Restore boardState to check next possible move
-            for(let i = 0; i < 8; i++) {
-                for(let j = 0; j < 8; j++) {
-                    boardState[i][j] = originalBoardState[i][j];
+            if (!isKingInCheck('black')) {
+                selectedMove = {piece: randomMove.piece, from: randomMove.from, to: randomTo};
+                // Restore boardState to check next possible move
+                for(let i = 0; i < 8; i++) {
+                    for(let j = 0; j < 8; j++) {
+                        boardState[i][j] = originalBoardState[i][j];
+                    }
+                }
+                break;
+            } else {
+                // If the move leads to check, remove this specific destination for this piece and try again
+                randomMove.to.splice(randomToIndex, 1);
+                if (randomMove.to.length === 0) {
+                    allMoves.splice(randomMoveIndex, 1);
+                }
+                // Restore boardState
+                for(let i = 0; i < 8; i++) {
+                    for(let j = 0; j < 8; j++) {
+                        boardState[i][j] = originalBoardState[i][j];
+                    }
                 }
             }
-            break;
-        } else {
-            // If the move leads to check, remove this specific destination for this piece and try again
-            randomMove.to.splice(randomToIndex, 1);
-            if (randomMove.to.length === 0) {
-                allMoves.splice(randomMoveIndex, 1);
-            }
-            // Restore boardState
-            for(let i = 0; i < 8; i++) {
-                for(let j = 0; j < 8; j++) {
-                    boardState[i][j] = originalBoardState[i][j];
+            attempts++;
+        }
+        bestMove = selectedMove;
+
+    } else if (difficulty === 'medium' || difficulty === 'hard') { // Medium and Hard will use evaluation for now
+        let maxScore = -Infinity;
+
+        for (const move of allMoves) {
+            for (const to of move.to) {
+                const originalBoardState = JSON.parse(JSON.stringify(boardState));
+
+                // Simulate move
+                boardState[to[0]][to[1]] = move.piece;
+                boardState[move.from[0]][move.from[1]] = '';
+
+                if (!isKingInCheck('black')) {
+                    const currentScore = evaluateBoard(boardState);
+                    if (currentScore > maxScore) {
+                        maxScore = currentScore;
+                        bestMove = { piece: move.piece, from: move.from, to: to };
+                    }
+                }
+                // Restore board state
+                for(let i = 0; i < 8; i++) {
+                    for(let j = 0; j < 8; j++) {
+                        boardState[i][j] = originalBoardState[i][j];
+                    }
                 }
             }
         }
-        attempts++;
     }
-
-    if (selectedMove) {
-        boardState[selectedMove.to[0]][selectedMove.to[1]] = selectedMove.piece;
-        boardState[selectedMove.from[0]][selectedMove.from[1]] = '';
+    
+    if (bestMove) {
+        boardState[bestMove.to[0]][bestMove.to[1]] = bestMove.piece;
+        boardState[bestMove.from[0]][bestMove.from[1]] = '';
     } else {
-        // If AI cannot find a safe move
+        // If AI cannot find a safe move even after evaluation
         if (isKingInCheck('black')) {
             alert('Checkmate! You win!');
         } else {
