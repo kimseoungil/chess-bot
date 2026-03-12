@@ -4,6 +4,8 @@ const playerColorSelect = document.getElementById('playerColor');
 const startButton = document.getElementById('startButton');
 const undoButton = document.getElementById('undoButton');
 const statusMessage = document.getElementById('statusMessage');
+const capturedByPlayer = document.getElementById('capturedByPlayer');
+const capturedByAI = document.getElementById('capturedByAI');
 const initialBoardState = [
     ['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'],
     ['p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'],
@@ -47,6 +49,8 @@ const pieceValues = {
     'p': 10, 'n': 30, 'b': 30, 'r': 50, 'q': 90, 'k': 900,
     'P': 10, 'N': 30, 'B': 30, 'R': 50, 'Q': 90, 'K': 900
 };
+
+const displayOrder = ['q', 'r', 'b', 'n', 'p'];
 
 const pieceSquareTables = {
     p: [
@@ -391,6 +395,64 @@ function getValidMoves(piece, row, col, board = boardState) {
     }
 }
 
+function countPieces(board) {
+    const counts = {};
+    for (let i = 0; i < 8; i++) {
+        for (let j = 0; j < 8; j++) {
+            const piece = board[i][j];
+            if (!piece) {
+                continue;
+            }
+            counts[piece] = (counts[piece] || 0) + 1;
+        }
+    }
+    return counts;
+}
+
+function getCapturedPieces() {
+    const initialCounts = countPieces(initialBoardState);
+    const currentCounts = countPieces(boardState);
+    const captured = {
+        byPlayer: [],
+        byAI: []
+    };
+
+    for (const pieceType of displayOrder) {
+        const blackPiece = pieceType;
+        const whitePiece = pieceType.toUpperCase();
+        const missingBlack = (initialCounts[blackPiece] || 0) - (currentCounts[blackPiece] || 0);
+        const missingWhite = (initialCounts[whitePiece] || 0) - (currentCounts[whitePiece] || 0);
+
+        for (let i = 0; i < missingBlack; i++) {
+            captured.byPlayer.push(blackPiece);
+        }
+        for (let i = 0; i < missingWhite; i++) {
+            captured.byAI.push(whitePiece);
+        }
+    }
+
+    return captured;
+}
+
+function renderCapturedPieces() {
+    const captured = getCapturedPieces();
+    const renderList = (container, pieces) => {
+        container.innerHTML = '';
+        for (const piece of pieces) {
+            const wrapper = document.createElement('div');
+            wrapper.classList.add('captured-piece');
+            const image = document.createElement('img');
+            image.src = pieceImages[piece];
+            image.alt = piece;
+            wrapper.appendChild(image);
+            container.appendChild(wrapper);
+        }
+    };
+
+    renderList(capturedByPlayer, captured.byPlayer);
+    renderList(capturedByAI, captured.byAI);
+}
+
 function renderBoard() {
     board.innerHTML = '';
     for (let i = 0; i < 8; i++) {
@@ -416,6 +478,7 @@ function renderBoard() {
             board.appendChild(square);
         }
     }
+    renderCapturedPieces();
 }
 
 function findKing(color, board = boardState) {

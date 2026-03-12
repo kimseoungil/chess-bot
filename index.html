@@ -7,7 +7,17 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="board"></div>
+    <div id="gameArea">
+        <div class="captured-panel">
+            <h2>Captured by You</h2>
+            <div id="capturedByPlayer" class="captured-pieces"></div>
+        </div>
+        <div id="board"></div>
+        <div class="captured-panel">
+            <h2>Captured by AI</h2>
+            <div id="capturedByAI" class="captured-pieces"></div>
+        </div>
+    </div>
     <div id="controls">
         <label for="difficulty">Difficulty:</label>
         <select id="difficulty">
