@@ -40,6 +40,7 @@ let difficulty = 'easy'; // Default difficulty
 let gameStarted = false;
 let playerColor = 'white';
 let aiColor = 'black';
+let recentAIMoves = [];
 
 // Piece values for board evaluation
 const pieceValues = {
@@ -141,6 +142,7 @@ function resetGameState() {
     validMoves = [];
     history = [];
     currentMoveIndex = -1;
+    recentAIMoves = [];
     pushToHistory();
 }
 
@@ -229,7 +231,34 @@ function evaluateBoard(board) {
             }
         }
     }
+
+    const blackMobility = getPseudoMobility('black', board);
+    const whiteMobility = getPseudoMobility('white', board);
+    score += (blackMobility - whiteMobility) * 0.15;
+
+    if (isKingInCheck('white', board)) {
+        score += 8;
+    }
+    if (isKingInCheck('black', board)) {
+        score -= 8;
+    }
+
     return score;
+}
+
+function getPseudoMobility(color, board = boardState) {
+    let mobility = 0;
+    for (let i = 0; i < 8; i++) {
+        for (let j = 0; j < 8; j++) {
+            const piece = board[i][j];
+            const isActiveColorPiece = color === 'white' ? isWhitePiece(piece) : isBlackPiece(piece);
+            if (!isActiveColorPiece) {
+                continue;
+            }
+            mobility += getValidMoves(piece, i, j, board).length;
+        }
+    }
+    return mobility;
 }
 
 function getPawnMoves(piece, row, col, board = boardState) {
@@ -430,7 +459,38 @@ function applyMove(board, move) {
 function getMovePriority(move) {
     const captureScore = move.capturedPiece ? pieceValues[move.capturedPiece.toLowerCase()] : 0;
     const moverScore = pieceValues[move.piece.toLowerCase()];
-    return captureScore * 10 - moverScore;
+    const centralityBonus = 4 - Math.abs(3.5 - move.to[0]) - Math.abs(3.5 - move.to[1]);
+    return captureScore * 10 - moverScore + centralityBonus;
+}
+
+function getMoveSignature(move) {
+    return `${move.piece}:${move.from[0]},${move.from[1]}-${move.to[0]},${move.to[1]}`;
+}
+
+function getReverseMoveSignature(move) {
+    return `${move.piece}:${move.to[0]},${move.to[1]}-${move.from[0]},${move.from[1]}`;
+}
+
+function scoreMoveForAI(move, board, searchScore = null) {
+    const nextBoard = applyMove(board, move);
+    const baseScore = searchScore === null ? evaluateBoard(nextBoard) : searchScore;
+    const scorePerspective = aiColor === 'black' ? baseScore : -baseScore;
+    const priorityBonus = getMovePriority(move) * 0.05;
+    let repetitionPenalty = 0;
+    const moveSignature = getMoveSignature(move);
+    const reverseSignature = getReverseMoveSignature(move);
+
+    if (recentAIMoves[recentAIMoves.length - 1] === reverseSignature) {
+        repetitionPenalty -= 6;
+    }
+    if (recentAIMoves.includes(moveSignature)) {
+        repetitionPenalty -= 2;
+    }
+    if (isKingInCheck(playerColor, nextBoard)) {
+        repetitionPenalty += 4;
+    }
+
+    return scorePerspective + priorityBonus + repetitionPenalty;
 }
 
 function getLegalMovesForColor(color, board = boardState) {
@@ -575,25 +635,23 @@ function makeAIMove() {
     if (difficulty === 'easy') {
         bestMove = allMoves[Math.floor(Math.random() * allMoves.length)];
     } else if (difficulty === 'medium') {
-        let bestScore = aiColor === 'black' ? -Infinity : Infinity;
+        let bestScore = -Infinity;
         for (const move of allMoves) {
-            const nextBoard = applyMove(boardState, move);
-            const currentScore = evaluateBoard(nextBoard);
+            const currentScore = scoreMoveForAI(move, boardState);
             const tieBreaker = getMovePriority(move);
-            const isBetterMove = aiColor === 'black' ? currentScore > bestScore : currentScore < bestScore;
-            if (isBetterMove || (currentScore === bestScore && bestMove && tieBreaker > getMovePriority(bestMove))) {
+            if (currentScore > bestScore || (currentScore === bestScore && bestMove && tieBreaker > getMovePriority(bestMove))) {
                 bestScore = currentScore;
                 bestMove = move;
             }
         }
     } else if (difficulty === 'hard') {
-        let bestScore = aiColor === 'black' ? -Infinity : Infinity;
+        let bestScore = -Infinity;
         for (const move of allMoves) {
             const nextBoard = applyMove(boardState, move);
-            const currentScore = minimax(nextBoard, 2, -Infinity, Infinity, playerColor);
+            const searchScore = minimax(nextBoard, 3, -Infinity, Infinity, playerColor);
+            const currentScore = scoreMoveForAI(move, boardState, searchScore);
             const tieBreaker = getMovePriority(move);
-            const isBetterMove = aiColor === 'black' ? currentScore > bestScore : currentScore < bestScore;
-            if (isBetterMove || (currentScore === bestScore && bestMove && tieBreaker > getMovePriority(bestMove))) {
+            if (currentScore > bestScore || (currentScore === bestScore && bestMove && tieBreaker > getMovePriority(bestMove))) {
                 bestScore = currentScore;
                 bestMove = move;
             }
@@ -603,6 +661,10 @@ function makeAIMove() {
     if (bestMove) {
         boardState[bestMove.to[0]][bestMove.to[1]] = bestMove.piece;
         boardState[bestMove.from[0]][bestMove.from[1]] = '';
+        recentAIMoves.push(getMoveSignature(bestMove));
+        if (recentAIMoves.length > 6) {
+            recentAIMoves.shift();
+        }
     } else {
         // If AI cannot find a safe move even after evaluation
         if (isKingInCheck(aiColor)) {
