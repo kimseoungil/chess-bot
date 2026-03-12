@@ -9,14 +9,21 @@
 <body>
     <div id="board"></div>
     <div id="controls">
-        <button id="undoButton">Undo Move</button>
         <label for="difficulty">Difficulty:</label>
         <select id="difficulty">
             <option value="easy">Easy</option>
             <option value="medium">Medium</option>
             <option value="hard">Hard</option>
         </select>
+        <label for="playerColor">Side:</label>
+        <select id="playerColor">
+            <option value="white">White</option>
+            <option value="black">Black</option>
+        </select>
+        <button id="startButton">Start Game</button>
+        <button id="undoButton">Undo Move</button>
     </div>
+    <p id="statusMessage">Choose difficulty and side, then press Start Game.</p>
     <script src="main.js"></script>
 </body>
 </html>
