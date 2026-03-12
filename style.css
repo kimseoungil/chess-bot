@@ -83,6 +83,23 @@ body {
     filter: drop-shadow(0 0 0.6vmin rgba(255, 255, 255, 0.5));
 }
 
+.hoverable-piece:hover {
+    background-color: #7aa7dc;
+}
+
+.hoverable-piece:hover::before {
+    content: "";
+    position: absolute;
+    inset: 14%;
+    border: 0.22vmin solid rgba(255, 255, 255, 0.72);
+    border-radius: 18%;
+}
+
+.hoverable-piece:hover img {
+    transform: scale(1.04);
+    filter: drop-shadow(0 0 0.45vmin rgba(255, 255, 255, 0.35));
+}
+
 .captured-panel {
     width: min(180px, 24vw);
     min-height: 80vmin;

@@ -460,6 +460,16 @@ function renderBoard() {
             const square = document.createElement('div');
             square.classList.add('square');
             square.classList.add((i + j) % 2 === 0 ? 'white' : 'black');
+            const piece = boardState[i][j];
+
+            if (
+                gameStarted &&
+                turn === playerColor &&
+                piece &&
+                (playerColor === 'white' ? isWhitePiece(piece) : isBlackPiece(piece))
+            ) {
+                square.classList.add('hoverable-piece');
+            }
             
             if (selectedPiece && selectedPiece.row === i && selectedPiece.col === j) {
                 square.classList.add('selected');
@@ -469,7 +479,6 @@ function renderBoard() {
                 square.classList.add('valid-move');
             }
 
-            const piece = boardState[i][j];
             if (piece) {
                 const pieceImage = document.createElement('img');
                 pieceImage.src = pieceImages[piece];
